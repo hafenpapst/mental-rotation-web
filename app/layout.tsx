@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -12,9 +12,21 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// ✅ Mobile-Viewport (sehr wichtig für Smartphones + iOS Safe Areas)
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover", // nutzt den ganzen Bildschirm inkl. Notch-Bereich
+};
+
 export const metadata: Metadata = {
-  title: "Mentale Rotation -  3D",
-  description: "Wie gut ist Ihr räumliches Denken? Testen Sie Ihre Fähigkeit zur mentalen Rotation von 3D-Objekten in diesem interaktiven Test.",
+  title: "Mentale Rotation – 3D",
+  description:
+    "Wie gut ist Ihr räumliches Denken? Testen Sie Ihre Fähigkeit zur mentalen Rotation von 3D-Objekten in diesem interaktiven Test.",
+  // optional hübsch: Statusleistenfarbe für PWA/Android Chrome etc.
+  themeColor: "#35a78a",
 };
 
 export default function RootLayout({
@@ -23,10 +35,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html lang="de">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {children}
       </body>
     </html>

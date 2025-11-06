@@ -368,6 +368,106 @@ export default function MentalRotation3D_OneShot(){
           </div>
         </>
       )}
+     {/* --- Footer / Impressum --- */}
+{/* --- Footer / Impressum & weitere Aufgaben --- */}
+<footer
+  style={{
+    marginTop: 'auto',
+    padding: '12px 12px calc(12px + env(safe-area-inset-bottom))',
+    // Wenn Spiel läuft, etwas Platz unterhalb lassen, damit die fixierte Button-Leiste nichts überdeckt:
+    marginBottom: started && !gameOver ? 72 : 0,
+    color: '#eef4ffcc',
+    fontSize: 12,
+  }}
+>
+  {/* feine Trennlinie */}
+  <div
+    style={{
+      height: 1,
+      background: 'linear-gradient(to right, transparent, rgba(255,255,255,.25), transparent)',
+      margin: '4px 0 12px',
+    }}
+  />
+
+  {/* Impressum/Absender + Kontakt */}
+  <div
+    style={{
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 10,
+      justifyContent: 'center',
+      alignItems: 'center',
+      textAlign: 'center',
+    }}
+  >
+    <span>
+      © 2025 <b>Dennis Eustermann</b> – Projekt im Rahmen des Seminars
+      <i> „Gedächtnis und Aufmerksamkeit in Kindheit und Jugend“</i>
+    </span>
+    <span style={{ opacity: 0.4 }}>•</span>
+    <a
+      href="mailto:dennis.eustermann@mailbox.tu-dresden.de"
+      style={{ color: '#fff', textDecoration: 'underline' }}
+    >
+      Kontakt
+    </a>
+  </div>
+
+  {/* Link-Kacheln zu deinen weiteren Apps */}
+  <div
+    style={{
+      marginTop: 10,
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 10,
+      justifyContent: 'center',
+    }}
+  >
+    <a
+      href="https://corsi-app.vercel.app"
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        background: '#00000024',
+        border: '1px solid rgba(255,255,255,.25)',
+        borderRadius: 10,
+        padding: '8px 12px',
+        color: '#EEF4FF',
+        textDecoration: 'none',
+        fontWeight: 700,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        backdropFilter: 'blur(4px)',
+      }}
+    >
+      🧩 Corsi-Block-Test
+    </a>
+
+    <a
+      href="https://phon-loop-app.vercel.app"
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        background: '#00000024',
+        border: '1px solid rgba(255,255,255,.25)',
+        borderRadius: 10,
+        padding: '8px 12px',
+        color: '#EEF4FF',
+        textDecoration: 'none',
+        fontWeight: 700,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        backdropFilter: 'blur(4px)',
+      }}
+    >
+      🔁 Phonologische Schleife
+    </a>
+  </div>
+</footer>
+
+ 
     </div>
   );
 }

@@ -9,7 +9,6 @@ function randInt(n:number){ return Math.floor(Math.random()*n); }
 function choice<T>(arr:T[]) { return arr[Math.floor(Math.random()*arr.length)]; }
 const DIRS: V3[] = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
 
-// kleines Hook für Breakpoint
 function useIsMobile(bp=768){
   const [m,setM] = React.useState(false);
   React.useEffect(()=>{
@@ -28,22 +27,26 @@ type LogRow = {
 };
 
 export default function MentalRotation3D_OneShot(){
-  // --- Spiel-Logik (wie bisher) ---
+  // --- Spiel-Parameter ---
   const MAX_LEVEL = 25;
   const TIME_LIMIT_S = 5;
   const SAME_PROB = 0.5;
 
+  // --- State ---
   const [round, setRound] = React.useState(0);
   const [score, setScore] = React.useState(0);
   const [level, setLevel] = React.useState(1);
   const [gameOver, setGameOver] = React.useState(false);
-  const [started, setStarted] = React.useState(false);
 
-  const [target, setTarget] = React.useState<V3[]>(genComplexShape(10,14));
-  const [probe, setProbe]   = React.useState<V3[]>(genComplexShape(10,14));
+  const [started, setStarted] = React.useState(false);            // Startbildschirm weg?
+  const [awaitingStart, setAwaitingStart] = React.useState(false); // Vorstart-Phase je Runde aktiv?
+
+  const [target, setTarget] = React.useState<V3[]>([]);
+  const [probe, setProbe]   = React.useState<V3[]>([]);
   const [isSameTruth, setIsSameTruth] = React.useState<boolean>(false);
 
   const [clicked, setClicked] = React.useState<null | boolean>(null);
+
   const [timeLeft, setTimeLeft] = React.useState<number>(TIME_LIMIT_S);
   const timerIdRef = React.useRef<number | null>(null);
   const startRef = React.useRef<number>(performance.now());
@@ -99,10 +102,21 @@ export default function MentalRotation3D_OneShot(){
     return other;
   }
 
-  function nextRound(increment=false){
-    const newRound = increment ? round+1 : round;
-    const newLevel = newRound === 0 ? 1 : Math.min(MAX_LEVEL, level + 1);
+  // --- Vorstart- & Rundenlogik ---
+  function prepareNextRound(){
     if (gameOver) return;
+    setClicked(null);
+    setAwaitingStart(true);      // Vorstart aktiv (leere Boxen, nur "Start")
+    clearTimer();
+    setTimeLeft(TIME_LIMIT_S);   // Anzeige zurücksetzen
+    setTarget([]); setProbe([]); // leere Boxen anzeigen
+  }
+
+  function startRound(){
+    if (gameOver) return;
+
+    const newRound = round + 1;
+    const newLevel = newRound === 1 ? 1 : Math.min(MAX_LEVEL, level + 1);
 
     const { minCubes, maxCubes, nearMissChance } = difficultyForLevel(newLevel);
     const base = genComplexShape(minCubes, maxCubes);
@@ -121,13 +135,20 @@ export default function MentalRotation3D_OneShot(){
     }
 
     trialMetaRef.current = { cubes: base.length, nearMiss: usedNearMiss, same };
-    setRound(newRound); setLevel(newLevel);
-    setTarget(base); setProbe(candidate); setIsSameTruth(same);
-    setClicked(null); startTimer();
+
+    setRound(newRound);
+    setLevel(newLevel);
+    setTarget(base);
+    setProbe(candidate);
+    setIsSameTruth(same);
+    setClicked(null);
+
+    setAwaitingStart(false); // jetzt „live“
+    startTimer();
   }
 
   function answer(choice:boolean | null){
-    if (clicked !== null || gameOver) return;
+    if (clicked !== null || gameOver || awaitingStart) return;
     clearTimer();
     const timeout = choice === null;
     const rt = timeout ? TIME_LIMIT_S*1000 : Math.round(performance.now() - startRef.current);
@@ -141,7 +162,13 @@ export default function MentalRotation3D_OneShot(){
       correct, rt_ms: rt, timeout
     }]));
     if (correct) playCorrect(); else playWrong();
-    if (level >= MAX_LEVEL) setGameOver(true);
+
+    // NEU: automatisch in Vorstart-Phase springen (statt "Nächste Runde"-Button)
+    if (level >= MAX_LEVEL) {
+      setGameOver(true);
+    } else {
+      prepareNextRound();
+    }
   }
 
   // --- Styles (responsive) ---
@@ -152,9 +179,11 @@ export default function MentalRotation3D_OneShot(){
   const btn  = { background:'#32C48D', color:'#152fc0ff', border:'none', padding: isMobile ? '12px 14px' : '10px 12px', borderRadius:12, cursor:'pointer', fontWeight:800, fontSize: isMobile ? 16 : 14 } as React.CSSProperties;
   const btnRed  = { ...btn, background:'#FF6B6B' };
   const btnBlue = { ...btn, background:'#6E8BFF' };
+  const btnMuted = { ...btn, opacity:.6, cursor:'not-allowed' as const };
   const timerStyle: React.CSSProperties = {
     fontSize: isMobile ? 22 : 28, fontWeight:900, padding: isMobile ? '4px 10px' : '4px 12px', borderRadius:12,
-    background: timeLeft <= 1.5 ? '#FFB703' : '#2BD4BD', color: '#7e2463ff', minWidth: isMobile ? 70 : 88, textAlign:'center'
+    background: timeLeft <= 1.5 && !awaitingStart ? '#FFB703' : '#2BD4BD',
+    color: '#7e2463ff', minWidth: isMobile ? 70 : 88, textAlign:'center'
   };
   const canvasBoxStyle: React.CSSProperties = {
     width: '100%',
@@ -162,7 +191,8 @@ export default function MentalRotation3D_OneShot(){
     background: '#1834b3ff',
     borderRadius: 12,
     overflow: 'hidden',
-    boxShadow: '0 8px 24px rgba(0,0,0,.35)'
+    boxShadow: '0 8px 24px rgba(0,0,0,.35)',
+    display:'grid', placeItems:'center', position:'relative'
   };
 
   // --- Auswertung ---
@@ -176,13 +206,14 @@ export default function MentalRotation3D_OneShot(){
   const normRt = norm.length ? (norm.reduce((a,b)=>a+b.rt_ms,0)/norm.length/1000).toFixed(2) : '–';
 
   function resetAll(){
-    clearTimer(); setRound(0); setLevel(1); setScore(0); setLog([]); setGameOver(false); setStarted(false);
+    clearTimer(); setRound(0); setLevel(1); setScore(0); setLog([]); setGameOver(false);
+    setStarted(false); setAwaitingStart(false); setTarget([]); setProbe([]);
   }
 
   return (
     <div style={{minHeight:'100dvh', background:bg, color:'#EEF4FF', display:'flex', flexDirection:'column'}}>
       {!started ? (
-        // --- Start ---
+        // --- Startbildschirm ---
         <div style={{flex:1, display:'grid', placeItems:'center', padding:16}}>
           <div style={{textAlign:'center', maxWidth:700, background:'#ffffff22', padding:isMobile?24:36, borderRadius:20, boxShadow:'0 8px 30px rgba(0,0,0,.2)'}}>
             <h1 style={{fontSize:isMobile?24:30, fontWeight:800, marginBottom:16}}>Wie gut ist Ihr räumliches Denken?</h1>
@@ -191,7 +222,7 @@ export default function MentalRotation3D_OneShot(){
               ob sie trotz unterschiedlicher Ansicht <b>identisch</b> sind oder <b>verschieden</b>!
             </p>
             <button
-              onClick={() => { setStarted(true); nextRound(true); }}
+              onClick={() => { setStarted(true); setRound(0); setLevel(1); prepareNextRound(); }}
               style={{...btn, background:'#32C48D', color:'#0A1022', padding:isMobile?'12px 20px':'12px 28px'}}
             >
               Bereit? Los geht’s!
@@ -242,13 +273,16 @@ export default function MentalRotation3D_OneShot(){
       ) : (
         // --- Hauptspiel ---
         <>
-          {/* Header */}
+          {/* Header (ohne "Nächste Runde"-Button) */}
           <div style={{display:'flex', gap:12, alignItems:'center', padding:isMobile?'10px 12px 6px':'12px 16px 6px'}}>
             <h1 style={{margin:0, fontSize:isMobile?16:18, fontWeight:800}}>Mentale Rotation – 3D</h1>
             <div style={{flex:1}} />
             <div style={{fontSize:12, opacity:.8}}>Level: <b>{level}</b> / {MAX_LEVEL}</div>
-            {!isMobile && <div style={timerStyle}>{timeLeft.toFixed(1)}s</div>}
-            <button onClick={()=>nextRound(true)} style={btnBlue}>Nächste Runde</button>
+            {!isMobile && (
+              <div style={timerStyle}>
+                {awaitingStart ? `${TIME_LIMIT_S.toFixed(1)}s` : `${timeLeft.toFixed(1)}s`}
+              </div>
+            )}
           </div>
 
           {/* Infozeile */}
@@ -268,40 +302,48 @@ export default function MentalRotation3D_OneShot(){
           }}>
             {/* Ziel */}
             <div style={card}>
-              <div style={{color:'#A7B7FF', margin:'4px 0 8px'}}>Zielobjekt (ungedreht)</div>
+              <div style={{color:'#A7B7FF', margin:'4px 0 8px'}}>
+                Zielobjekt {awaitingStart ? '(gleich erscheint)' : '(ungedreht)'}
+              </div>
               <div style={canvasBoxStyle}>
                 <Canvas camera={{ position:[7.2,7.2,7.2], fov:40 }}>
                   <ambientLight intensity={0.9}/>
                   <directionalLight position={[6,12,6]} intensity={1.0}/>
                   <Stage adjustCamera={false} intensity={0.6} environment={null}>
                     <group rotation={[0.35, 0.55, 0]}>
-                      <PolyCube blocks={target} color="#8EE3D7" edge="#FFFFFF" unit={0.95} />
+                      {!awaitingStart && target.length>0 ? (
+                        <PolyCube blocks={target} color="#8EE3D7" edge="#FFFFFF" unit={0.95} />
+                      ) : null}
                     </group>
                   </Stage>
                   <OrbitControls enablePan={false} enableZoom={false} enableRotate={false}/>
                 </Canvas>
+                {awaitingStart && <div style={{position:'absolute', color:'#ffffffcc', fontWeight:700}}>Bereit…</div>}
               </div>
             </div>
 
             {/* Prüfobjekt */}
             <div style={card}>
-              <div style={{color:'#A7B7FF', margin:'4px 0 8px'}}>Prüfobjekt</div>
+              <div style={{color:'#A7B7FF', margin:'4px 0 8px'}}>Prüfobjekt {awaitingStart ? '(gleich erscheint)' : ''}</div>
               <div style={canvasBoxStyle}>
                 <Canvas camera={{ position:[7.2,7.2,7.2], fov:40 }}>
                   <ambientLight intensity={0.9}/>
                   <directionalLight position={[6,12,6]} intensity={1.0}/>
                   <Stage adjustCamera={false} intensity={0.6} environment={null}>
                     <group rotation={[0.35, 0.55, 0]}>
-                      <PolyCube blocks={probe} color="#FFD166" edge="#FFFFFF" unit={0.95} />
+                      {!awaitingStart && probe.length>0 ? (
+                        <PolyCube blocks={probe} color="#FFD166" edge="#FFFFFF" unit={0.95} />
+                      ) : null}
                     </group>
                   </Stage>
                   <OrbitControls enablePan={false} enableZoom={false} enableRotate={false}/>
                 </Canvas>
+                {awaitingStart && <div style={{position:'absolute', color:'#ffffffcc', fontWeight:700}}>…und los</div>}
               </div>
             </div>
           </div>
 
-          {/* Fixierte Antwortleiste unten */}
+          {/* Fixierte Leiste unten: ENTWEDER "Start" ODER Antwort-Buttons */}
           <div style={{
             position:'fixed', left:'50%', transform:'translateX(-50%)',
             bottom:0, width:'min(100%, 860px)',
@@ -311,9 +353,18 @@ export default function MentalRotation3D_OneShot(){
             borderTopLeftRadius:12, borderTopRightRadius:12,
             boxShadow:'0 -6px 20px rgba(0,0,0,.25)', zIndex:1000
           }}>
-            <button onClick={()=>answer(true)}  style={{...btn, flex:1}}>Gleich ✔</button>
-            <button onClick={()=>answer(false)} style={{...btnRed, flex:1}}>Verschieden ✖</button>
-            {isMobile && <div style={{...timerStyle, marginLeft:8}}>{timeLeft.toFixed(1)}s</div>}
+            {awaitingStart ? (
+              <>
+                <button onClick={startRound} style={{...btn, flex:1}}>Start</button>
+                <div style={{...timerStyle, marginLeft:8}}>{TIME_LIMIT_S.toFixed(1)}s</div>
+              </>
+            ) : (
+              <>
+                <button onClick={()=>answer(true)}  style={{...btn, flex:1}}>Gleich ✔</button>
+                <button onClick={()=>answer(false)} style={{...btnRed, flex:1}}>Verschieden ✖</button>
+                <div style={{...timerStyle, marginLeft:8}}>{timeLeft.toFixed(1)}s</div>
+              </>
+            )}
           </div>
         </>
       )}

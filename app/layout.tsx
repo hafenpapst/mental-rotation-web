@@ -12,21 +12,21 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// ✅ Mobile-Viewport (sehr wichtig für Smartphones + iOS Safe Areas)
+// ✅ Mobile-Viewport + Theme-Farbe (richtiges Zuhause für themeColor)
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover", // nutzt den ganzen Bildschirm inkl. Notch-Bereich
+  themeColor: "#35a78a", // ← hierhin verschoben
 };
 
+// ✅ Nur Titel + Beschreibung bleiben im Metadata-Block
 export const metadata: Metadata = {
   title: "Mentale Rotation – 3D",
   description:
     "Wie gut ist Ihr räumliches Denken? Testen Sie Ihre Fähigkeit zur mentalen Rotation von 3D-Objekten in diesem interaktiven Test.",
-  // optional hübsch: Statusleistenfarbe für PWA/Android Chrome etc.
-  themeColor: "#35a78a",
 };
 
 export default function RootLayout({
